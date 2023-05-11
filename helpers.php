@@ -1,4 +1,11 @@
 <?php
+if(!function_exists('pcntl_signal')) {
+    function pcntl_signal(int $signal, callable|int $handler, bool $restart_syscalls = true): bool
+    {
+        // for windows mock
+        return true;
+    }
+}
 
 function config($key) {
     $config = require __DIR__ . '/config.php';

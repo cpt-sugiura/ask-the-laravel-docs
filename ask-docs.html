@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat with Server</title>
+  <style>
+      .chat-container {
+          display: flex;
+          flex-direction: column;
+          max-width: 500px;
+          margin: auto;
+      }
+
+      .messages {
+          max-height: 300px;
+          overflow-y: auto;
+      }
+
+      .message {
+          margin-bottom: 10px;
+      }
+  </style>
+</head>
+<body>
+<div class="chat-container">
+  <h1>Chat with Server</h1>
+  <div class="messages" id="messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" cols="30" rows="5"  ></textarea>
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<script>
+document.getElementById('chat-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const chatInput = document.getElementById('chat-input');
+  const message = chatInput.value;
+  if (!message) return;
+
+  // Send POST request
+  const response = await fetch('/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  // Process response
+  if (response.ok) {
+    const data = await response.json();
+    displayMessage(data.response, data.sources);
+  } else {
+    console.error('Error sending message:', response.statusText);
+  }
+
+  // Clear input
+  chatInput.value = '';
+});
+
+function displayMessage(response, sources) {
+  const messagesDiv = document.getElementById('messages');
+  const messageDiv = document.createElement('pre');
+  messageDiv.style.whiteSpace = 'pre-wrap';
+  messageDiv.classList.add('message');
+
+  const responseDiv = document.createElement('div');
+  responseDiv.textContent = 'Response: ' + response;
+  messageDiv.appendChild(responseDiv);
+
+  if (sources && sources.length > 0) {
+    const sourcesDiv = document.createElement('div');
+    sourcesDiv.textContent = 'Sources: ' + sources.join(', ');
+    messageDiv.appendChild(sourcesDiv);
+  }
+
+  messagesDiv.appendChild(messageDiv);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+</script>
+</body>
+</html>

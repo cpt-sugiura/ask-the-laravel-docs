@@ -5,13 +5,12 @@ namespace CosmeDev\AskDocs;
 use MacFJA\RediSearch\IndexBuilder;
 use MacFJA\RediSearch\Redis\Client\ClientFacade;
 use MacFJA\RediSearch\Redis\Command\AbstractCommand;
-use MacFJA\RediSearch\Redis\Command\Search;
 use Predis\Client;
 
 class RedisHelper
 {
-    public $redisSearchClient;
-    public $predisClient;
+    public \MacFJA\RediSearch\Redis\Client $redisSearchClient;
+    public Client $predisClient;
 
     public function __construct()
     {
@@ -39,19 +38,19 @@ class RedisHelper
         return in_array($name, $result);
     }
 
-    public function createIndex(IndexBuilder $indexBuilder)
+    public function createIndex(IndexBuilder $indexBuilder): void
     {
         $indexBuilder->create($this->redisSearchClient, AbstractCommand::MAX_IMPLEMENTED_VERSION);
     }
 
-    public function hset($key, $document)
+    public function hset($key, $document): void
     {
         foreach ($document as $field => $value) {
             $this->predisClient->hset($key, $field, $value);
         }
     }
 
-    public function vectorSearch(string $indexName, int $k, string $blobVector, string $vectorName, array $returnFields)
+    public function vectorSearch(string $indexName, int $k, string $blobVector, string $vectorName, array $returnFields): array
     {
         $rawDocs = $this->predisClient->executeRaw([
             'FT.SEARCH',
@@ -69,7 +68,7 @@ class RedisHelper
         //       key1,
         //       value1,
         //       key2,
-        //       valu2, 
+        //       valu2,
         //       ...
         //    ],
         //    1 => second result id,

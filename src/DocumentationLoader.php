@@ -5,7 +5,6 @@ use MacFJA\RediSearch\IndexBuilder;
 use MacFJA\RediSearch\Redis\Command\CreateCommand\VectorFieldOption;
 use OpenAI\Client;
 use ZipArchive;
-use TerminalProgress\Bar;
 
 class DocumentationLoader
 {
@@ -13,7 +12,7 @@ class DocumentationLoader
     {
     }
 
-    public function loadDocs()
+    public function loadDocs(): void
     {
         $builder = new IndexBuilder();
         $builder
@@ -38,12 +37,12 @@ class DocumentationLoader
     }
 
     // We iterate over every file in the documentation
-    // and we split them in chunks, each chunk represents a 
+    // and we split them in chunks, each chunk represents a
     // section of the documentation.
     //
     // it returns an array of documentation section with "text"
     // and "urls"
-    public function parseDocs($path)
+    public function parseDocs($path): array
     {
         echo "Parsing doc files...\n";
         $files = scandir($path);
@@ -60,7 +59,7 @@ class DocumentationLoader
             preg_match_all("/name=\"(?<link>.+?)\"><\/a>\n(?<text>#.+?)(?:<a|\z)/s", $contents, $matches, PREG_SET_ORDER);
 
             $sections = array_map(fn ($match) => [
-                'url' => "{$url}#{$match['link']}",
+                'url' => "$url#{$match['link']}",
                 'text' => $match['text'],
             ], $matches);
 
@@ -72,7 +71,7 @@ class DocumentationLoader
 
     // Download the documentation from github
     // and unzip it into the given path
-    public function downloadDocs($path)
+    public function downloadDocs($path): void
     {
         echo "Downloading and unzipping docs...\n";
         $content = file_get_contents('https://github.com/laravel/docs/archive/refs/heads/10.x.zip');
@@ -86,21 +85,19 @@ class DocumentationLoader
         unlink('./temp.zip');
     }
 
-    // We split the documentation sections into batches 
+    // We split the documentation sections into batches
     // of 10 sections at a time, this is to send 10 sections at the
     // same time to OpenAI to get the embeddings for the text
-    // we then put those embeddings into the 'content_vector' 
+    // we then put those embeddings into the 'content_vector'
     // field and store the section in redis
-    public function batchLoad()
+    public function batchLoad(): void
     {
         $this->downloadDocs(config('docs_path'));
         $docs = $this->parseDocs(config('docs_path') . '/docs-10.x');
         $batchSize = 10;
         $currentKeyCount = 0;
-        echo "Storing documents in redis...\n";
-        $progressBar = new Bar(count($docs));
         foreach (array_chunk($docs, $batchSize) as $chunk) {
-            // Convert the text from each section into the embeddings 
+            // Convert the text from each section into the embeddings
             // representation using the OpenAI embedding endpoint
             $texts = array_column($chunk, 'text');
             $response = $this->openai->embeddings()->create([
@@ -113,9 +110,8 @@ class DocumentationLoader
                 // them to a byte string using the encode() function. See helpers.php
                 $packed = encode($embeddingsResponse->embedding);
                 $chunk[$index]['content_vector'] = $packed;
-                $this->redis->hset("doc:{$currentKeyCount}", $chunk[$index]);
+                $this->redis->hset("doc:$currentKeyCount", $chunk[$index]);
                 $currentKeyCount++;
-                $progressBar->tick();
             }
         }
     }

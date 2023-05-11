@@ -6,7 +6,7 @@ use JetBrains\PhpStorm\NoReturn;
 use OpenAI;
 use OpenAI\Client;
 
-class AskDocs
+class AskDocsReceiveQuestionFromPost
 {
     public Client $openai;
     public RedisHelper $redis;
@@ -17,7 +17,7 @@ class AskDocs
         $this->redis = new RedisHelper();
     }
 
-    #[NoReturn] public function start(): void
+    #[NoReturn] public function start(string $question): void
     {
         if (!$this->redis->hasIndex(config('redis.index_name'))) {
             echo "Index doesn't exist so we'll create it (this only happens one time)...\n";
@@ -25,21 +25,19 @@ class AskDocs
             $docLoader->loadDocs();
         }
 
-        $chatHistroy = [];
-        while (true) {
-            $question = readline("Type your question ('quit' to stop): ");
-            if (trim($question) == 'quit') {
-                exit();
-            }
-
-            $question = $this->questionWithHistory($question, $chatHistroy);
-            $chatHistroy[] = 'User: ' . $question;
-            $relevantDocs = $this->relevantDocs($question);
-            $questionWithContext = $this->questionWithContext($question, array_column($relevantDocs, 'text'));
-            $response = $this->chat($questionWithContext);
-            $chatHistroy[] = 'Assistant: ' . $question;
-            $this->showResponse($response, array_column($relevantDocs, 'url'));
+        if(is_file(__DIR__ . '/chatHistory.txt')) {
+            $chatHistory = unserialize(file_get_contents(__DIR__ . '/chatHistory.txt'));
+        }else{
+            $chatHistory = [];
         }
+        $question = $this->questionWithHistory($question, $chatHistory);
+        $chatHistory[] = 'User: ' . $question;
+        $relevantDocs = $this->relevantDocs($question);
+        $questionWithContext = $this->questionWithContext($question, array_column($relevantDocs, 'text'));
+        $response = $this->chat($questionWithContext);
+        $chatHistory[] = 'Assistant: ' . $question;
+        $this->showResponse($response, array_column($relevantDocs, 'url'));
+        file_put_contents(__DIR__ . '/chatHistory.txt', serialize($chatHistory));
     }
 
     // We ask OpenAI to create a question that contains the whole context of the
@@ -113,7 +111,6 @@ TEXT;
 
     public function showResponse($response, $sources): void
     {
-        // The weird \e stuff is to add colors to the terminal output :)
-        echo "\e[42m\e[30mOpenAI:\e[0m\e[32m " . $response . "\n\e[0m\e[43m\e[30mSources:\e[0m\e[96m\n" . implode("\n", $sources) . "\e[0m\n\n";
+        echo json_encode(['response' => $response, 'sources' => $sources]);
     }
 }
